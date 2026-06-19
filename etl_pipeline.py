@@ -87,7 +87,7 @@ def log_execution_metrics(metrics, elapsed_time):
 def run_etl_pipeline():
     """
     Coordinates the robust pipeline operations.
-    Handles multiple photos per student by tracking file occurrences.
+    Organizes high-res outputs into dedicated student subfolders.
     """
     start_time = time.time()
     logger.info("Initializing ETL Production Pipeline...")
@@ -97,7 +97,7 @@ def run_etl_pipeline():
     output_dir = "organized_output"
     web_dir = "web_portal_proxies"
     
-    # Ensure all output directories exist
+    # Ensure root output directories exist
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(web_dir, exist_ok=True)
     
@@ -109,8 +109,6 @@ def run_etl_pipeline():
         "corrupted_files": 0
     }
     
-    # Dictionary to track how many times a student has had a photo mapped
-    # e.g., {'STU001': 1, 'STU001': 2}
     student_photo_counters = {}
     
     # ------------------ EXTRACT ------------------
@@ -158,18 +156,23 @@ def run_etl_pipeline():
         student_photo_counters[student_id] = student_photo_counters.get(student_id, 0) + 1
         photo_num = student_photo_counters[student_id]
         
-        # Unique output filename including the photo index suffix
-        target_filename = f"{student_id}_{cleaned_name}_{photo_num}_TOGA.jpg"
-        target_path = os.path.join(output_dir, target_filename)
+        # Create student-specific folder inside organized_output
+        student_folder_name = f"{student_id}_{cleaned_name}"
+        student_output_dir = os.path.join(output_dir, student_folder_name)
+        os.makedirs(student_output_dir, exist_ok=True)
         
-        # Web preview filename including the photo index suffix
+        # Unique target file path inside the student's subfolder
+        target_filename = f"{student_id}_{cleaned_name}_{photo_num}_TOGA.jpg"
+        target_path = os.path.join(student_output_dir, target_filename)
+        
+        # Web preview filename
         preview_filename = f"{student_id}_preview_{photo_num}.jpg"
         preview_path = os.path.join(web_dir, preview_filename)
         
         # Copy high-res file (Load phase)
         try:
             shutil.copy2(source_path, target_path)
-            logger.info(f" -> Successfully mapped: {expected_filename} -> {target_filename}")
+            logger.info(f" -> Successfully mapped: {expected_filename} -> {student_folder_name}/{target_filename}")
             
             # Generate Web Proxy (Optimization layer)
             proxy_success = create_web_proxy(source_path, preview_path)
